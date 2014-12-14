@@ -1,0 +1,96 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "bernhard.dressel@gmail.com",
+    "longName": "SCBA Fire Scene Team Tracker",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/small_exclamation_mark.png",
+                "name": "SMALL_EXCLAMATION_MARK",
+                "type": "png"
+            },
+            {
+                "file": "images/small_stop_signe.png",
+                "name": "SMALL_STOP_SIGNE",
+                "type": "png"
+            },
+            {
+                "file": "images/small_scba_firefighter.png",
+                "name": "SMALL_SCBA_FIREFIGHTER",
+                "type": "png"
+            },
+            {
+                "file": "images/small_third_full_bottle.png",
+                "name": "SMALL_THIRD_FULL_BOTTLE",
+                "type": "png"
+            },
+            {
+                "file": "images/small_third_empty_bottle.png",
+                "name": "SMALL_THIRD_EMPTY_BOTTLE",
+                "type": "png"
+            },
+            {
+                "file": "images/small_half_full_bottle.png",
+                "name": "SMALL_HALF_FULL_BOTTLE",
+                "type": "png"
+            },
+            {
+                "file": "images/small_full_bottle.png",
+                "name": "SMALL_FULL_BOTTLE",
+                "type": "png"
+            },
+            {
+                "file": "images/small_empty_bottle.png",
+                "name": "SMALL_EMPTY_BOTTLE",
+                "type": "png"
+            },
+            {
+                "file": "images/scba_firefighter.png",
+                "name": "SCBA_FIREFIGHTER",
+                "type": "png"
+            },
+            {
+                "file": "images/full_bottle.png",
+                "name": "FULL_BOTTLE",
+                "type": "png"
+            },
+            {
+                "file": "images/menu_image.png",
+                "menuIcon": true,
+                "name": "MENU_IMAGE",
+                "type": "png"
+            },
+            {
+                "file": "images/active_scba.png",
+                "name": "ACTIVE_SCBA",
+                "type": "png"
+            },
+            {
+                "file": "images/ok_btn.png",
+                "name": "OK_BTN",
+                "type": "png"
+            },
+            {
+                "file": "images/arrow_up.png",
+                "name": "ARROW_UP",
+                "type": "png"
+            },
+            {
+                "file": "images/arrow_down.png",
+                "name": "ARROW_DOWN",
+                "type": "png"
+            }
+        ]
+    },
+    "shortName": "SCBA Tracker",
+    "uuid": "38fa5bc5-2183-44e6-840a-bd627152d56d",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
