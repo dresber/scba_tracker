@@ -1,9 +1,9 @@
 //**********************************************************************************//
 //                          PEBBLE SCBA TRACKER                                     
 //                                                                                  
-//  Version:  1.0                                                           
+//  Version:  1.1                                                           
 //  Author:   Bernhard D.                                                   
-//  Date:     2014-12-07                                                    
+//  Date:     2014-12-17                                                    
 //                                                                          
 //  DESCRIPTION: 
 //
@@ -53,11 +53,11 @@ void start_scba_layer(Layer *layer, uint8_t team);
 void click_down(void);
 void click_up(void);
 void click_select(void);
-void click_handler(uint8_t key, uint8_t factor);
+void click_handler(uint8_t key);
 void switch_scba_selection(uint8_t key);
 void change_scba_nr(uint8_t key);
 void change_bottle_type(uint8_t key);
-void change_bottle_pressure(uint8_t key, uint8_t factor);
+void change_bottle_pressure(uint8_t key);
 void change_active_scba_icon(void);
 void set_text_layer_font(TextLayer *layer, GColor background_color, GColor text_color, GTextAlignment text_alignment, const char* font);
 void update_scba_team_info(uint8_t team_nr);
@@ -70,6 +70,13 @@ void long_click_select(void);
 void stop_scba_monitoring(uint8_t key);
 void multi_click_up(void);
 void multi_click_down(void);
+void load_app_configuration(void);
+uint16_t increase_value(uint16_t min, uint16_t max, uint16_t value, bool overflow);
+uint16_t increase_value_with_factor(uint16_t min, uint16_t max, uint16_t value, uint8_t factor, bool overflow);
+uint16_t reduce_value(uint16_t min, uint16_t max, uint16_t value, bool overflow);
+uint16_t reduce_value_with_factor(uint16_t min, uint16_t max, uint16_t value, uint8_t factor, bool overflow);
+void initialize_scba_team(uint8_t team_nr);
+void long_click_timer_callback(void *data);
 
 //* -------- global variables ---------- *//
 //                                        //
@@ -100,13 +107,29 @@ GBitmap *icon_small_exclamation_mark;
 
 ActionBarLayer *g_action_bar;
 
-scba_layer_t scba_one_layers;
+AppTimer *long_click_timer;
 
-scba_bottle_t  available_bottles[4] = {
-  {90,   300,   80,   (char*)("9l")},
-  {68,   300,   60,   (char*)("6,8l")}, 
-  {80,   200,   80,   (char*)("2x4l")},
-  {136,  300,   120,  (char*)("2x6,8l")} 
+bool multi_click_up_active = false;
+bool multi_click_down_active = false;
+
+uint8_t scba_default_bottle_type = SCBA_DATA_DEFAULT_BOTTLE_TYPE;
+uint8_t scba_bottle_type_available[SCBA_AVAILABLE_BOTTLE_TYPES] = {
+  1,
+  1, 
+  1,
+  1,
+  1,
+  1
+};
+
+uint16_t scba_breathing_rate = SCBA_DEFAULT_AIR_CONSUMPTION;
+uint16_t scba_bottle_config_keys[SCBA_AVAILABLE_BOTTLE_TYPES] = {
+  SCBA_STORE_KEY_BOTTLE_ONE_AVAILABLE,
+  SCBA_STORE_KEY_BOTTLE_TWO_AVAILABLE,
+  SCBA_STORE_KEY_BOTTLE_THREE_AVAILABLE,
+  SCBA_STORE_KEY_BOTTLE_FOUR_AVAILABLE,
+  SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE,
+  SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE  
 };
 
 uint32_t scba_team_storage_keys[SCBA_TEAMS] = {
@@ -115,6 +138,14 @@ uint32_t scba_team_storage_keys[SCBA_TEAMS] = {
   SCBA_STORE_KEY_TEAM_THREE
 };
 
+scba_bottle_t  scba_bottle_types[SCBA_AVAILABLE_BOTTLE_TYPES] = {
+  {90,   300,   80,   (char*)("9l")},
+  {68,   300,   60,   (char*)("6,8l")}, 
+  {80,   200,   80,   (char*)("2x4l")},
+  {136,  300,   120,  (char*)("2x6,8l")},
+  {60,   300,   53,   (char*)("6l")},
+  {120,  300,   106,  (char*)("2x6l")}
+};
 //* ----------- functions -------------- *//
 //                                        //
 //* ------------------------------------ *//
@@ -128,8 +159,94 @@ void click_config_provider(void *context)
   window_single_click_subscribe(BUTTON_ID_UP, (ClickHandler) click_up);
   window_single_click_subscribe(BUTTON_ID_SELECT, (ClickHandler) click_select);
   window_long_click_subscribe(BUTTON_ID_SELECT, 1000, (ClickHandler)long_click_select, (ClickHandler)long_click_select);
-  window_multi_click_subscribe(BUTTON_ID_UP, 2, 20, 300, false, (ClickHandler)multi_click_up);
-  window_multi_click_subscribe(BUTTON_ID_DOWN, 2, 20, 300, false, (ClickHandler)multi_click_down);
+  window_long_click_subscribe(BUTTON_ID_UP, 500, (ClickHandler)multi_click_up, (ClickHandler)multi_click_up);
+  window_long_click_subscribe(BUTTON_ID_DOWN, 500, (ClickHandler)multi_click_down, (ClickHandler)multi_click_down);
+}
+
+/**
+*
+*/
+void long_click_timer_callback(void *data)
+{
+  if ((multi_click_up_active == true) && ((screen_status == SCBA_CNFG_SCREEN_BOTTLE_PRESSURE) || (screen_status == SCBA_UPDATE_PRESSURE)))
+  {
+    change_bottle_pressure(CLICK_UP);
+  }
+  
+  if ((multi_click_down_active == true) && ((screen_status == SCBA_CNFG_SCREEN_BOTTLE_PRESSURE) || (screen_status == SCBA_UPDATE_PRESSURE)))
+  {
+    change_bottle_pressure(CLICK_DOWN);
+  }
+   
+  long_click_timer = app_timer_register(LONG_CLICK_CNT_DELAY, (AppTimerCallback)long_click_timer_callback, NULL);  
+}
+
+/**
+*
+*/
+void in_recv_handler(DictionaryIterator *iterator, void *context)
+{
+  Tuple *t = dict_read_first(iterator);
+  uint8_t i = 0;
+  
+  while(t != NULL)
+  {
+    switch(t->key)
+    {
+      case SCBA_STORE_KEY_BREATHING_RATE:
+        scba_breathing_rate = atoi(t->value->cstring) * 10;
+        persist_write_int(SCBA_STORE_KEY_BREATHING_RATE, scba_breathing_rate);
+        break;
+      
+      case SCBA_STORE_KEY_BOTTLE_ONE_AVAILABLE:
+        scba_bottle_type_available[0] = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_BOTTLE_ONE_AVAILABLE, scba_bottle_type_available[0]);
+        break;
+
+      case SCBA_STORE_KEY_BOTTLE_TWO_AVAILABLE:
+        scba_bottle_type_available[1] = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_BOTTLE_TWO_AVAILABLE, scba_bottle_type_available[1]);
+        break;
+
+      case SCBA_STORE_KEY_BOTTLE_THREE_AVAILABLE:
+        scba_bottle_type_available[2] = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_BOTTLE_THREE_AVAILABLE, scba_bottle_type_available[2]);
+        break;
+
+      case SCBA_STORE_KEY_BOTTLE_FOUR_AVAILABLE:
+        scba_bottle_type_available[3] = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_BOTTLE_FOUR_AVAILABLE, scba_bottle_type_available[3]);
+        break;
+
+      case SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE:
+        scba_bottle_type_available[4] = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE, scba_bottle_type_available[4]);
+        break;
+
+      case SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE:
+        scba_bottle_type_available[5] = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE, scba_bottle_type_available[5]);
+        break;
+      
+      case SCBA_STORE_KEY_DEFAULT_BOTTLE:
+        scba_default_bottle_type = atoi(t->value->cstring);
+        persist_write_int(SCBA_STORE_KEY_DEFAULT_BOTTLE, scba_default_bottle_type);
+        break;
+      
+      default:
+        break;
+    }
+    
+    t = dict_read_next(iterator);
+  }
+  
+  for (i=0; i<SCBA_TEAMS; i++)
+  {
+    if(scba_team_data[i].scba_team_status == SCBA_NOT_STARTED)
+    {
+        initialize_scba_team(i);
+    }
+  } 
 }
 
 /**
@@ -146,6 +263,10 @@ void handle_init(void)
   
   window_set_fullscreen(g_window, true);
   tick_timer_service_subscribe(SECOND_UNIT, (TickHandler)tick_handler);
+  
+  app_message_register_inbox_received((AppMessageInboxReceived) in_recv_handler);
+  app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+  
   window_stack_push(g_window, true);
 }
 
@@ -182,6 +303,8 @@ void window_load(Window *window)
   icon_small_stop_signe = gbitmap_create_with_resource(RESOURCE_ID_SMALL_STOP_SIGNE);
   icon_small_exclamation_mark = gbitmap_create_with_resource(RESOURCE_ID_SMALL_EXCLAMATION_MARK);
   
+  load_app_configuration();
+  
   start_scba_layer(g_scba_one_layer, 0);
   start_scba_layer(g_scba_two_layer, 1);
   start_scba_layer(g_scba_three_layer, 2);
@@ -206,6 +329,8 @@ void window_load(Window *window)
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(g_clock_layer));
   
   change_active_scba_icon();
+  
+  long_click_timer = app_timer_register(LONG_CLICK_CNT_DELAY, (AppTimerCallback)long_click_timer_callback, NULL);
 }
 
 /**
@@ -222,10 +347,7 @@ void start_scba_layer(Layer *layer, uint8_t team)
   }
   else
   {
-    scba_team_data[team].scba_team_nr = team+1;
-    scba_team_data[team].scba_team_bottle_pressure = SCBA_DATA_DEFAULT_PRESSURE;  
-    scba_team_data[team].scba_team_bottle_type = SCBA_DATA_DEFAULT_BOTTLE_TYPE;
-    scba_team_data[team].scba_team_status = SCBA_NOT_STARTED;
+    initialize_scba_team(team);
   }
   // Add objects for SCBA start screen
   scba_layer[team].start_layer = text_layer_create(GRect(10,0,110,40));
@@ -315,6 +437,7 @@ void window_unload(Window *window)
 {
   text_layer_destroy(g_header_layer);
   text_layer_destroy(g_clock_layer);
+  app_timer_cancel(long_click_timer);
 }
 
 /**
@@ -377,7 +500,7 @@ void tick_handler(struct tm *tick_time, TimeUnits units_changed)
 */
 void click_down(void)
 {
-  click_handler(CLICK_DOWN, ORDINARY_CLICK);
+  click_handler(CLICK_DOWN);
 }
 
 /**
@@ -385,7 +508,7 @@ void click_down(void)
 */
 void click_up(void)
 {
-  click_handler(CLICK_UP, ORDINARY_CLICK);
+  click_handler(CLICK_UP);
 }
 
 /**
@@ -393,7 +516,7 @@ void click_up(void)
 */
 void click_select(void)
 {
-  click_handler(CLICK_SELECT, ORDINARY_CLICK);  
+  click_handler(CLICK_SELECT);  
 }
 
 /**
@@ -412,7 +535,14 @@ void long_click_select(void)
 */
 void multi_click_up(void)
 {
-  click_handler(CLICK_UP, MULTI_CLICK);
+  if (multi_click_up_active == false)
+  {
+    multi_click_up_active = true;
+  }
+  else
+  {
+    multi_click_up_active = false;
+  }
 }
 
 /**
@@ -420,13 +550,20 @@ void multi_click_up(void)
 */
 void multi_click_down(void)
 {
-  click_handler(CLICK_DOWN, MULTI_CLICK);
+  if (multi_click_down_active == false)
+  {
+    multi_click_down_active = true;
+  }
+  else
+  {
+    multi_click_down_active = false;
+  }
 }
 
 /**
 *
 */
-void click_handler(uint8_t key, uint8_t factor)
+void click_handler(uint8_t key)
 {
   switch(screen_status)
   {    
@@ -439,7 +576,7 @@ void click_handler(uint8_t key, uint8_t factor)
       break;
 
     case SCBA_CNFG_SCREEN_BOTTLE_PRESSURE:
-      change_bottle_pressure(key, factor);
+      change_bottle_pressure(key);
       break;
 
     case SCBA_START_SCREEN:
@@ -448,7 +585,7 @@ void click_handler(uint8_t key, uint8_t factor)
       break;
     
     case SCBA_UPDATE_PRESSURE:
-      change_bottle_pressure(key, factor);
+      change_bottle_pressure(key);
       break;
     
     case SCBA_STOP_MONITORING:
@@ -465,28 +602,15 @@ void click_handler(uint8_t key, uint8_t factor)
 */
 void switch_scba_selection(uint8_t key)
 {
+  uint8_t temp_scba = active_scba;
   switch(key)
   {
     case CLICK_UP:
-      if(active_scba == 0)
-      {
-        active_scba = 2;
-      }
-      else
-      {
-        active_scba -= 1;
-      }
+      active_scba = reduce_value(0, 2, temp_scba, true);
       break;
 
     case CLICK_DOWN:
-      if(active_scba == 2)
-      {
-        active_scba = 0;
-      }
-      else
-      {
-        active_scba += 1;
-      }
+      active_scba = increase_value(0, 2, temp_scba, true);
       break;
     
     case CLICK_SELECT:
@@ -525,33 +649,20 @@ void switch_scba_selection(uint8_t key)
 */
 void change_scba_nr(uint8_t key)
 {
+  uint8_t temp_team = scba_team_data[active_scba].scba_team_nr;
   switch(key)
   {
     case CLICK_UP:
-      if(scba_team_data[active_scba].scba_team_nr > 9)
-      {
-        scba_team_data[active_scba].scba_team_nr = 1;
-      }
-      else
-      {
-        scba_team_data[active_scba].scba_team_nr += 1; 
-      }
+      scba_team_data[active_scba].scba_team_nr = increase_value(1, SCBA_TEAM_HIGHEST_NR, temp_team, true);
       break;
     
     case CLICK_DOWN:
-      if(scba_team_data[active_scba].scba_team_nr < 2)
-      {
-        scba_team_data[active_scba].scba_team_nr = 10;        
-      }  
-      else
-      {
-        scba_team_data[active_scba].scba_team_nr -= 1;
-      }
+      scba_team_data[active_scba].scba_team_nr = reduce_value(1, SCBA_TEAM_HIGHEST_NR, temp_team, true);
       break;
     
     case CLICK_SELECT:
       text_layer_set_text(scba_layer[active_scba].cnfg_text_layer, "Size:");
-      text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, available_bottles[scba_team_data[active_scba].scba_team_bottle_type].bottle_name);
+      text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, scba_bottle_types[scba_team_data[active_scba].scba_team_bottle_type].bottle_name);
       bitmap_layer_set_bitmap(scba_layer[active_scba].cnfg_bitmap_layer, icon_full_bottle);
       screen_status = SCBA_CNFG_SCREEN_BOTTLE_TYPE;
       break;
@@ -569,33 +680,28 @@ void change_scba_nr(uint8_t key)
 */
 void change_bottle_type(uint8_t key)
 {
+  uint8_t temp_bottle = 0;
   switch(key)
   {
     case CLICK_UP:
-      if(scba_team_data[active_scba].scba_team_bottle_type > 2)
+      do
       {
-        scba_team_data[active_scba].scba_team_bottle_type = 0;
-      }
-      else
-      {
-        scba_team_data[active_scba].scba_team_bottle_type += 1; 
-      }
+        temp_bottle = scba_team_data[active_scba].scba_team_bottle_type;
+        scba_team_data[active_scba].scba_team_bottle_type = increase_value(0, (SCBA_AVAILABLE_BOTTLE_TYPES-1), temp_bottle, true);
+      }while(scba_bottle_type_available[scba_team_data[active_scba].scba_team_bottle_type] == 0);
       break;
     
     case CLICK_DOWN:
-      if(scba_team_data[active_scba].scba_team_bottle_type < 1)
+      do
       {
-        scba_team_data[active_scba].scba_team_bottle_type = 3;        
-      }  
-      else
-      {
-        scba_team_data[active_scba].scba_team_bottle_type -= 1;
-     }
+        temp_bottle = scba_team_data[active_scba].scba_team_bottle_type;
+        scba_team_data[active_scba].scba_team_bottle_type = reduce_value(0, (SCBA_AVAILABLE_BOTTLE_TYPES-1), temp_bottle, true);
+      }while(scba_bottle_type_available[scba_team_data[active_scba].scba_team_bottle_type] == 0);
       break;
     
     case CLICK_SELECT:
       text_layer_set_text(scba_layer[active_scba].cnfg_text_layer, "Pressure:");
-      scba_team_data[active_scba].scba_team_bottle_pressure = available_bottles[scba_team_data[active_scba].scba_team_bottle_type].bottle_default_pressure;
+      scba_team_data[active_scba].scba_team_bottle_pressure = scba_bottle_types[scba_team_data[active_scba].scba_team_bottle_type].bottle_default_pressure;
       mini_snprintf(text_buffer, sizeof(text_buffer), "%d", scba_team_data[active_scba].scba_team_bottle_pressure);
       text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, text_buffer);
       screen_status = SCBA_CNFG_SCREEN_BOTTLE_PRESSURE;
@@ -604,39 +710,26 @@ void change_bottle_type(uint8_t key)
   
   if((key == CLICK_UP) || (key == CLICK_DOWN))
   {
-    text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, available_bottles[scba_team_data[active_scba].scba_team_bottle_type].bottle_name);  
+    text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, scba_bottle_types[scba_team_data[active_scba].scba_team_bottle_type].bottle_name);  
   }
 }
 
 /**
 *
 */
-void change_bottle_pressure(uint8_t key, uint8_t factor)
+void change_bottle_pressure(uint8_t key)
 {
-  uint16_t max_pressure = (available_bottles[scba_team_data[active_scba].scba_team_bottle_type].bottle_default_pressure * 110 ) / 100;
+  uint16_t max_pressure = (scba_bottle_types[scba_team_data[active_scba].scba_team_bottle_type].bottle_default_pressure * 110 ) / 100;
+  uint16_t temp_pressure = scba_team_data[active_scba].scba_team_bottle_pressure;
   
   switch(key)
   {
     case CLICK_UP:
-      if(scba_team_data[active_scba].scba_team_bottle_pressure >= max_pressure)
-      {
-        scba_team_data[active_scba].scba_team_bottle_pressure = 0;
-      }
-      else
-      {
-        scba_team_data[active_scba].scba_team_bottle_pressure += (1 * factor); 
-      }
+      scba_team_data[active_scba].scba_team_bottle_pressure = increase_value(SCBA_BOTTLE_MIN_PRESSURE, max_pressure, temp_pressure, false);    
       break;
     
     case CLICK_DOWN:
-      if(scba_team_data[active_scba].scba_team_bottle_pressure < 1)
-      {
-        scba_team_data[active_scba].scba_team_bottle_pressure = max_pressure;        
-      }  
-      else
-      {
-        scba_team_data[active_scba].scba_team_bottle_pressure -= (1 * factor);
-      }
+      scba_team_data[active_scba].scba_team_bottle_pressure = reduce_value(SCBA_BOTTLE_MIN_PRESSURE, max_pressure, temp_pressure, false);    
       break;
     
     case CLICK_SELECT:
@@ -663,7 +756,10 @@ void change_bottle_pressure(uint8_t key, uint8_t factor)
   {
     mini_snprintf(text_buffer, sizeof(text_buffer), "%d", scba_team_data[active_scba].scba_team_bottle_pressure);
     text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, text_buffer);
-    update_scba_team_info_screen(active_scba);
+    if (screen_status == SCBA_UPDATE_PRESSURE)
+    {
+      update_scba_team_info_screen(active_scba);
+    }
   }
 }
 
@@ -698,10 +794,7 @@ void stop_scba_monitoring(uint8_t key)
       text_layer_set_text(scba_layer[active_scba].start_layer, "Start SCBA");
       text_layer_set_text(scba_layer[active_scba].cnfg_text_layer, "TEAM\nNr.:");
       bitmap_layer_set_bitmap(scba_layer[active_scba].cnfg_bitmap_layer, icon_scba_firefighter);
-      scba_team_data[active_scba].scba_team_nr = active_scba+1;
-      scba_team_data[active_scba].scba_team_bottle_pressure = SCBA_DATA_DEFAULT_PRESSURE;  
-      scba_team_data[active_scba].scba_team_bottle_type = SCBA_DATA_DEFAULT_BOTTLE_TYPE;
-      scba_team_data[active_scba].scba_team_status = SCBA_NOT_STARTED;
+      initialize_scba_team(active_scba);
       persist_delete(scba_team_storage_keys[active_scba]);
       screen_status = SCBA_INFO_SCREEN;
       break;
@@ -737,7 +830,7 @@ bool update_scba_team_info_screen(uint8_t team_nr)
   time_t temp_time = 0;
   time_t absolute_delta_time = 0;
   static uint8_t cnt[SCBA_TEAMS] = {19, 19, 19};
-  uint16_t team_default_pressure = available_bottles[scba_team_data[team_nr].scba_team_bottle_type].bottle_default_pressure;
+  uint16_t team_default_pressure = scba_bottle_types[scba_team_data[team_nr].scba_team_bottle_type].bottle_default_pressure;
   uint16_t team_pressure = scba_team_data[team_nr].scba_team_bottle_pressure;
   uint16_t team_pressure_third = (team_default_pressure - SCBA_BOTTLE_MIN_PRESSURE) / 4;
   bool alarm = false;
@@ -839,9 +932,9 @@ bool update_scba_team_info_screen(uint8_t team_nr)
 */
 void reduce_scba_team_air_volume(uint8_t team_nr)
 {
-  if(scba_team_data[team_nr].scba_team_bottle_air_volume >= (SCBA_DEFAULT_AIR_CONSUMPTION / 2))
+  if(scba_team_data[team_nr].scba_team_bottle_air_volume >= (scba_breathing_rate / 2))
   {
-    scba_team_data[team_nr].scba_team_bottle_air_volume -= (SCBA_DEFAULT_AIR_CONSUMPTION / 2);  
+    scba_team_data[team_nr].scba_team_bottle_air_volume -= (scba_breathing_rate / 2);  
   }
   else
   {
@@ -854,7 +947,7 @@ void reduce_scba_team_air_volume(uint8_t team_nr)
 */
 void calc_scba_team_air_pressure(uint8_t team_nr)
 {
-  scba_team_data[team_nr].scba_team_bottle_pressure = (scba_team_data[team_nr].scba_team_bottle_air_volume ) / available_bottles[scba_team_data[team_nr].scba_team_bottle_type].air_volume_in_dliter_per_bar;   
+  scba_team_data[team_nr].scba_team_bottle_pressure = (scba_team_data[team_nr].scba_team_bottle_air_volume ) / scba_bottle_types[scba_team_data[team_nr].scba_team_bottle_type].air_volume_in_dliter_per_bar;   
 }
 
 /**
@@ -862,7 +955,7 @@ void calc_scba_team_air_pressure(uint8_t team_nr)
 */
 void calc_scba_team_air_volume(uint8_t team_nr)
 {
-  scba_team_data[team_nr].scba_team_bottle_air_volume = scba_team_data[team_nr].scba_team_bottle_pressure * available_bottles[scba_team_data[team_nr].scba_team_bottle_type].air_volume_in_dliter_per_bar;
+  scba_team_data[team_nr].scba_team_bottle_air_volume = scba_team_data[team_nr].scba_team_bottle_pressure * scba_bottle_types[scba_team_data[team_nr].scba_team_bottle_type].air_volume_in_dliter_per_bar;
 }
 
 /**
@@ -872,15 +965,133 @@ void update_scba_team_end_time(uint8_t team_nr)
 {
   time_t temp_time = 0;
   time_t expected_end_time = 0;
-  uint16_t safety_volume = available_bottles[team_nr].air_volume_in_dliter_per_bar * SCBA_BOTTLE_MIN_PRESSURE;
+  uint16_t safety_volume = scba_bottle_types[team_nr].air_volume_in_dliter_per_bar * SCBA_BOTTLE_MIN_PRESSURE;
   
   time(&temp_time);
   
   if (scba_team_data[team_nr].scba_team_bottle_pressure >= 50)
   {
-    expected_end_time = (temp_time + ( 60 * ((scba_team_data[team_nr].scba_team_bottle_air_volume - safety_volume) / SCBA_DEFAULT_AIR_CONSUMPTION )));
+    expected_end_time = (temp_time + ( 60 * ((scba_team_data[team_nr].scba_team_bottle_air_volume - safety_volume) / scba_breathing_rate )));
     strftime(scba_layer[team_nr].text_stop_time, sizeof("00:00"), "%H:%M", localtime(&expected_end_time));    
   }
+}
+
+/**
+*
+*/
+void load_app_configuration()
+{
+  uint8_t i = 0;
+  
+  if(persist_exists(SCBA_STORE_KEY_BREATHING_RATE))
+  {
+    scba_breathing_rate = persist_read_int(SCBA_STORE_KEY_BREATHING_RATE);
+  }
+
+  for (i=0; i<SCBA_AVAILABLE_BOTTLE_TYPES; i++)
+  {
+    if(persist_exists(scba_bottle_config_keys[i]))
+    {
+      scba_bottle_type_available[i] = persist_read_int(scba_bottle_config_keys[i]);      
+    } 
+  }
+
+  if(persist_exists(SCBA_STORE_KEY_DEFAULT_BOTTLE))
+  {
+    scba_default_bottle_type = persist_read_int(SCBA_STORE_KEY_DEFAULT_BOTTLE);
+  }    
+}
+
+/**
+*
+*/
+uint16_t increase_value(uint16_t min, uint16_t max, uint16_t value, bool overflow)
+{
+  if(value < max)
+  {
+    value++;  
+  }
+  else if (overflow == true)
+  {
+    value = min;  
+  }
+  else
+  {
+    value = max;  
+  }
+  return value;
+}
+
+/**
+*
+*/
+uint16_t increase_value_with_factor(uint16_t min, uint16_t max, uint16_t value, uint8_t factor, bool overflow)
+{
+  if(value < max)
+  {
+    value += factor;  
+  }
+  else if (overflow == true)
+  {
+    value = min;  
+  }
+  else
+  {
+    value = max;  
+  }
+  return value;
+}
+
+
+/**
+*
+*/
+uint16_t reduce_value(uint16_t min, uint16_t max, uint16_t value, bool overflow)
+{
+  if(value > min)
+  {
+    value--;  
+  }
+  else if (overflow == true)
+  {
+    value = max;  
+  }
+  else
+  {
+    value = min;
+  }
+  return value;
+}
+
+/**
+*
+*/
+uint16_t reduce_value_with_factor(uint16_t min, uint16_t max, uint16_t value, uint8_t factor, bool overflow)
+{
+  if(value > min)
+  {
+    value --;  
+  }
+  else if (overflow == true)
+  {
+    value = max;  
+  }
+  else
+  {
+    value = min;
+  }
+  return value;
+}
+
+/**
+*
+*/
+void initialize_scba_team(uint8_t team_nr)
+{
+  scba_team_data[team_nr].scba_team_nr = active_scba+1;
+  scba_team_data[team_nr].scba_team_bottle_pressure = scba_bottle_types[scba_default_bottle_type].bottle_default_pressure;  
+  scba_team_data[team_nr].scba_team_bottle_type = scba_default_bottle_type;
+  scba_team_data[team_nr].scba_team_status = SCBA_NOT_STARTED;
 }
 
 //* ----------- main call -------------- *//
