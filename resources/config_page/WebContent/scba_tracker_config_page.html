@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+	body 
+	{
+		font-family: Arial, Helvetica, sans-serif;
+		background-color:white
+	}
+	
+	input 
+	{
+		margin-left: 20px;
+	}
+
+</style>
+<meta charset="ISO-8859-1">
+<title>SCBA Tracker Configuration</title>
+</head>
+
+<body>
+	<h1>SCBA Tracker Configuration</h1>
+	<p>Choose your personal tracker settings</p>
+	<hr>
+	
+	<p>Select default <b>breathing rate</b>:
+		<select id="breathing_rate">
+			<option value=50>50 l/min</option>
+			<option value=40>40 l/min</option>
+			<option value=60>60 l/min</option>
+		</select>
+	</p>
+	
+	<p>Select the <b>bottle types</b> you want to have in your app as selection:</p>
+	<p>
+			<input type="checkbox" name="type_1" id="type_1" value="active" checked>9l 300bar<br>
+			<input type="checkbox" name="type_2" id="type_2" value="active" checked>6,8l 300bar<br>
+			<input type="checkbox" name="type_3" id="type_3" value="active" checked>2x4l 200bar<br>
+			<input type="checkbox" name="type_4" id="type_4" value="active" checked>2x6,8l 300bar<br>
+			<input type="checkbox" name="type_5" id="type_5" value="active" checked>6l 300bar<br>
+			<input type="checkbox" name="type_6" id="type_6" value="active" checked>2x6l 300bar<br>			
+	</p>
+	
+	<p>Select the <b>default bottle type</b> <br>you want to have for your teams:
+		<select id="default_bottle">
+			<option value=0>9l 300bar</option>
+			<option value=1>6,8l 300bar</option>
+			<option value=2>2x4l 200bar</option>
+			<option value=3>2x6,8l 300bar</option>
+			<option value=4>6l 300bar</option>
+			<option value=5>2x6l 300bar</option>
+		</select>
+	</p>		
+	
+	<hr>
+	<br>	
+	<p>
+	<button id="save_button" style="float: left;">Store</button>
+	<button id="cancel_button" style="float: right;">Cancel</button>
+	</p>
+	<br>
+	<hr>
+	<p align="center">
+		<font size = "1">
+			SCBA Fire Scene Team Tracker<br>Bernhard D.<br>2014
+		</font>
+	</p>
+	
+	<script>		
+		function saveOptions() {
+
+			var breathingRate = document.getElementById("breathing_rate");
+			var bottleCheckboxIds = ["type_1", "type_2", "type_3", "type_4", "type_5", "type_6"];				
+			var defaultBottle = document.getElementById("default_bottle");
+			var checkbox_state = [];
+			
+			// check the states of the checkboxes and fill an array with strings
+			for (i=0; i<bottleCheckboxIds.length; i++)
+			{
+				if(document.getElementById(bottleCheckboxIds[i]).checked)
+				{
+					checkbox_state[i] = "1";
+				}
+				else
+				{
+					checkbox_state[i] = "0";
+				}
+			}
+
+			// check the selected default bottle is also active
+			if (document.getElementById(bottleCheckboxIds[defaultBottle.options[defaultBottle.selectedIndex].value]).checked)
+			{
+				var options = {
+						"breath_rate" : breathingRate.options[breathingRate.selectedIndex].value,
+						"type1"	:	checkbox_state[0],
+						"type2"	:	checkbox_state[1],
+						"type3"	:	checkbox_state[2],
+						"type4"	:	checkbox_state[3],
+						"type5"	:	checkbox_state[4],
+						"type6"	:	checkbox_state[5],
+						"def_bottle" : defaultBottle.options[defaultBottle.selectedIndex].value
+				}
+				return options;
+			}
+			else
+			{
+				return false;
+			}
+		};
+		
+		var submitButton = document.getElementById("save_button");
+		submitButton.addEventListener("click",
+			function() {
+				console.log("Submit");
+				
+				var options = saveOptions();
+				if (options != false)
+				{
+					var location = "pebblejs://close#" + encodeURIComponent(JSON.stringify(options));
+					document.location = location;						
+				}
+				else
+				{
+					// send an error in case that the bottle was not selected
+					alert("Your selected default bottle is not checked!");
+				}
+			},
+		false);
+		
+		var cancelButton = document.getElementById("cancel_button");
+		cancelButton.addEventListener("click",
+			function(){
+				console.log("Close");
+			
+				var location = "pebblejs://close#";
+				document.location = location;
+			},
+		false);
+	</script>	
+</body>
+</html>
+
