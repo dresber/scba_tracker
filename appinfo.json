@@ -1,7 +1,17 @@
 {
-    "appKeys": {},
+    "appKeys": {
+        "SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE": 8,
+        "SCBA_STORE_KEY_BOTTLE_FOUR_AVAILABLE": 6,
+        "SCBA_STORE_KEY_BOTTLE_ONE_AVAILABLE": 3,
+        "SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE": 9,
+        "SCBA_STORE_KEY_BOTTLE_THREE_AVAILABLE": 5,
+        "SCBA_STORE_KEY_BOTTLE_TWO_AVAILABLE": 4,
+        "SCBA_STORE_KEY_BREATHING_RATE": 2,
+        "SCBA_STORE_KEY_DEFAULT_BOTTLE": 7,
+        "SCBA_STORE_KEY_IMPERIAL_UNITS": 10
+    },
     "capabilities": [
-        ""
+        "configurable"
     ],
     "companyName": "bernhard.dressel@gmail.com",
     "longName": "SCBA Fire Scene Team Tracker",
@@ -89,7 +99,7 @@
     "shortName": "SCBA Tracker",
     "uuid": "38fa5bc5-2183-44e6-840a-bd627152d56d",
     "versionCode": 1,
-    "versionLabel": "1.0",
+    "versionLabel": "1.2",
     "watchapp": {
         "watchface": false
     }
