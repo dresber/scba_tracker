@@ -6,7 +6,7 @@ Pebble.addEventListener("ready",
 
 Pebble.addEventListener("showConfiguration",
   function(e) {
-    Pebble.openURL("https://www.googledrive.com/host/0B2O_EhizVtu7NUN0QkFUU3RKZHc");
+    Pebble.openURL("https://www.googledrive.com/host/0B2O_EhizVtu7c01TOGhqdUg5ck0");
   }
 );
 
@@ -23,7 +23,8 @@ Pebble.addEventListener("webviewclosed",
       "SCBA_STORE_KEY_BOTTLE_FOUR_AVAILABLE": configuration.type4,
       "SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE": configuration.type5,
       "SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE": configuration.type6,
-      "SCBA_STORE_KEY_DEFAULT_BOTTLE": configuration.def_bottle
+      "SCBA_STORE_KEY_DEFAULT_BOTTLE": configuration.def_bottle,
+      "SCBA_STORE_KEY_IMPERIAL_UNITS": configuration.imp_units
     };
     
     Pebble.sendAppMessage(

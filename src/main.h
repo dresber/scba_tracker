@@ -40,6 +40,7 @@
 #define SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE 0x0008
 #define SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE 0x0009
 #define SCBA_STORE_KEY_DEFAULT_BOTTLE 0x0007
+#define SCBA_STORE_KEY_IMPERIAL_UNITS 0x000A
   
 #define SCBA_TEAMS 3
   
@@ -58,7 +59,9 @@
 #define ORDINARY_CLICK 0x01
 #define MULTI_CLICK 0x0A
 #define LONG_CLICK_CNT_DELAY 50 // in ms
-  
+#define BAR_TO_PSI_FACTOR 14.503773773
+#define NOT_AVAILABLE 0
+#define AVAILABLE 1
 #define DEBUG
   
 //* ------- structure definitions ------ *//
@@ -90,7 +93,7 @@ typedef  struct
   char text_stop_time[6];
   char text_passed_time[4];
   char text_team_nr[2];
-  char text_pressure[4];
+  char text_pressure[5];
 }scba_layer_t;
 
 typedef struct
@@ -101,12 +104,14 @@ typedef struct
   uint16_t scba_team_bottle_air_volume;
   uint8_t  scba_team_bottle_type;
   uint8_t  scba_team_status;
+  uint8_t  scba_team_pressure_psi;
 }__attribute__((__packed__)) scba_team_t;
 
 typedef struct
 {
   uint8_t  bottle_volume_in_dliter;
   uint16_t bottle_default_pressure;
+  uint16_t bottle_default_pressure_in_psi;
   uint16_t air_volume_in_dliter_per_bar;
   char*    bottle_name;
 }scba_bottle_t;
