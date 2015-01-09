@@ -29,9 +29,18 @@
 #define SCBA_EMPTY_BOTTLE_ALARM 0x0A
 #define SCBA_EMPTY_BOTTLE_ALARM_CONFIRMED 0x0B
   
-#define SCBA_STORE_KEY_TEAM_ONE    0x0001
-#define SCBA_STORE_KEY_TEAM_TWO    0x0010
-#define SCBA_STORE_KEY_TEAM_THREE  0x0100
+#define SCBA_STORE_KEY_TEAM_ONE   0x0001
+#define SCBA_STORE_KEY_TEAM_TWO   0x0010
+#define SCBA_STORE_KEY_TEAM_THREE 0x0100
+#define SCBA_STORE_KEY_BREATHING_RATE    0x0002
+#define SCBA_STORE_KEY_BOTTLE_ONE_AVAILABLE 0x0003
+#define SCBA_STORE_KEY_BOTTLE_TWO_AVAILABLE 0x0004
+#define SCBA_STORE_KEY_BOTTLE_THREE_AVAILABLE 0x0005
+#define SCBA_STORE_KEY_BOTTLE_FOUR_AVAILABLE 0x0006
+#define SCBA_STORE_KEY_BOTTLE_FIVE_AVAILABLE 0x0008
+#define SCBA_STORE_KEY_BOTTLE_SIX_AVAILABLE 0x0009
+#define SCBA_STORE_KEY_DEFAULT_BOTTLE 0x0007
+#define SCBA_STORE_KEY_IMPERIAL_UNITS 0x000A
   
 #define SCBA_TEAMS 3
   
@@ -39,6 +48,8 @@
 #define SCBA_DATA_DEFAULT_BOTTLE_TYPE  0
 #define SCBA_DEFAULT_AIR_CONSUMPTION 500  // in dliter per minute
 #define SCBA_BOTTLE_MIN_PRESSURE 50 // in bar
+#define SCBA_AVAILABLE_BOTTLE_TYPES 6
+#define SCBA_TEAM_HIGHEST_NR  10
 
 #define NUM_ACTION_BAR_ITEMS   3
   
@@ -47,6 +58,11 @@
 #define CLICK_SELECT 0x00
 #define ORDINARY_CLICK 0x01
 #define MULTI_CLICK 0x0A
+#define LONG_CLICK_CNT_DELAY 50 // in ms
+#define BAR_TO_PSI_FACTOR 14.503773773
+#define NOT_AVAILABLE 0
+#define AVAILABLE 1
+#define DEBUG
   
 //* ------- structure definitions ------ *//
 //                                        //
@@ -77,7 +93,7 @@ typedef  struct
   char text_stop_time[6];
   char text_passed_time[4];
   char text_team_nr[2];
-  char text_pressure[4];
+  char text_pressure[5];
 }scba_layer_t;
 
 typedef struct
@@ -88,12 +104,14 @@ typedef struct
   uint16_t scba_team_bottle_air_volume;
   uint8_t  scba_team_bottle_type;
   uint8_t  scba_team_status;
+  uint8_t  scba_team_pressure_psi;
 }__attribute__((__packed__)) scba_team_t;
 
 typedef struct
 {
   uint8_t  bottle_volume_in_dliter;
   uint16_t bottle_default_pressure;
+  uint16_t bottle_default_pressure_in_psi;
   uint16_t air_volume_in_dliter_per_bar;
   char*    bottle_name;
 }scba_bottle_t;
