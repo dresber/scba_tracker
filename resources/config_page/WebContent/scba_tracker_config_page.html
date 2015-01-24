@@ -33,24 +33,31 @@
 	
 	<p>Select the <b>bottle types</b> you want to have in your app as selection:</p>
 	<p>
-			<input type="checkbox" name="type_1" id="type_1" value="active" checked>9l 300bar<br>
-			<input type="checkbox" name="type_2" id="type_2" value="active" checked>6,8l 300bar<br>
-			<input type="checkbox" name="type_3" id="type_3" value="active" checked>2x4l 200bar<br>
-			<input type="checkbox" name="type_4" id="type_4" value="active" checked>2x6,8l 300bar<br>
-			<input type="checkbox" name="type_5" id="type_5" value="active" checked>6l 300bar<br>
-			<input type="checkbox" name="type_6" id="type_6" value="active" checked>2x6l 300bar<br>			
+			<input type="checkbox" name="type_1" id="type_1" value="active" checked>9l 300bar (4500psi)<br>
+			<input type="checkbox" name="type_2" id="type_2" value="active" checked>6,8l 300bar (4500psi)<br>
+			<input type="checkbox" name="type_3" id="type_3" value="active" checked>2x4l 200bar (3000psi)<br>
+			<input type="checkbox" name="type_4" id="type_4" value="active" checked>2x6,8l 300bar (4500psi)<br>
+			<input type="checkbox" name="type_5" id="type_5" value="active" checked>6l 300bar (4500psi)<br>
+			<input type="checkbox" name="type_6" id="type_6" value="active" checked>2x6l 300bar (4500psi)<br>			
 	</p>
 	
 	<p>Select the <b>default bottle type</b> <br>you want to have for your teams:
 		<select id="default_bottle">
-			<option value=0>9l 300bar</option>
-			<option value=1>6,8l 300bar</option>
-			<option value=2>2x4l 200bar</option>
-			<option value=3>2x6,8l 300bar</option>
-			<option value=4>6l 300bar</option>
-			<option value=5>2x6l 300bar</option>
+			<option value=0>9l 300bar (4500psi)</option>
+			<option value=1>6,8l 300bar (4500psi)</option>
+			<option value=2>2x4l 200bar (3000psi)</option>
+			<option value=3>2x6,8l 300bar (4500psi)</option>
+			<option value=4>6l 300bar (4500psi)</option>
+			<option value=5>2x6l 300bar (4500psi)</option>
 		</select>
-	</p>		
+	</p>
+	
+	<p>Select either you wanna show the pressure in <b>bar or psi</b>:
+		<select id="imperial_units">
+			<option value=0>bar</option>
+			<option value=1>psi</option>
+		</select>			
+	</p>	
 	
 	<hr>
 	<br>	
@@ -72,6 +79,7 @@
 			var breathingRate = document.getElementById("breathing_rate");
 			var bottleCheckboxIds = ["type_1", "type_2", "type_3", "type_4", "type_5", "type_6"];				
 			var defaultBottle = document.getElementById("default_bottle");
+			var impUnits = document.getElementById("imperial_units");
 			var checkbox_state = [];
 			
 			// check the states of the checkboxes and fill an array with strings
@@ -98,7 +106,8 @@
 						"type4"	:	checkbox_state[3],
 						"type5"	:	checkbox_state[4],
 						"type6"	:	checkbox_state[5],
-						"def_bottle" : defaultBottle.options[defaultBottle.selectedIndex].value
+						"def_bottle" : defaultBottle.options[defaultBottle.selectedIndex].value,
+						"imp_units" : impUnits.options[impUnits.selectedIndex].value
 				}
 				return options;
 			}
