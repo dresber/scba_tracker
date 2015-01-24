@@ -185,7 +185,7 @@ void long_click_timer_callback(void *data)
    
   if(imperial_units == AVAILABLE)
   {
-    click_delay = LONG_CLICK_CNT_DELAY / 2;
+    click_delay = LONG_CLICK_CNT_DELAY / 5;
   }
   
   long_click_timer = app_timer_register(click_delay, (AppTimerCallback)long_click_timer_callback, NULL);  
