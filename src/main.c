@@ -358,7 +358,6 @@ void window_load(Window *window)
 void start_scba_layer(Layer *layer, uint8_t team)
 {  
   bool data_loaded = false;
-  uint16_t temp_pressure = 0;
   // Set default values for the SCBA team
   if(persist_exists(scba_team_storage_keys[team]))
   {
@@ -511,6 +510,10 @@ void tick_handler(struct tm *tick_time, TimeUnits units_changed)
       {
         least_one_alarm_active = true;  
       }
+    }
+    else
+    {
+      cnt[i] = 0;
     }
   }
   
@@ -725,6 +728,15 @@ void change_bottle_type(uint8_t key)
       break;
     
     case CLICK_SELECT:
+      // set default pressure according to the selected bottle type
+      if(imperial_units == AVAILABLE)
+      {
+        scba_team_data[active_scba].scba_team_bottle_pressure = scba_bottle_types[scba_team_data[active_scba].scba_team_bottle_type].bottle_default_pressure_in_psi;                    
+      }
+      else
+      {
+        scba_team_data[active_scba].scba_team_bottle_pressure = scba_bottle_types[scba_team_data[active_scba].scba_team_bottle_type].bottle_default_pressure;     
+      }
       text_layer_set_text(scba_layer[active_scba].cnfg_text_layer, "Pressure:");
       mini_snprintf(text_buffer, sizeof(text_buffer), "%d", scba_team_data[active_scba].scba_team_bottle_pressure);
       text_layer_set_text(scba_layer[active_scba].cnfg_text_layer_input, text_buffer);
@@ -1176,16 +1188,7 @@ uint16_t reduce_value_with_factor(uint16_t min, uint16_t max, uint16_t value, ui
 */
 void initialize_scba_team(uint8_t team_nr)
 {
-  scba_team_data[team_nr].scba_team_nr = active_scba+1;
-  
-  if(imperial_units == AVAILABLE)
-  {
-    scba_team_data[team_nr].scba_team_bottle_pressure = scba_bottle_types[scba_default_bottle_type].bottle_default_pressure_in_psi;          
-  }
-  else
-  {
-    scba_team_data[team_nr].scba_team_bottle_pressure = scba_bottle_types[scba_default_bottle_type].bottle_default_pressure;      
-  }
+  scba_team_data[team_nr].scba_team_nr = team_nr+1;
   scba_team_data[team_nr].scba_team_bottle_type = scba_default_bottle_type;
   scba_team_data[team_nr].scba_team_status = SCBA_NOT_STARTED;
   scba_team_data[team_nr].scba_team_pressure_psi = imperial_units;
