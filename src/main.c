@@ -1,9 +1,9 @@
 //**********************************************************************************//
 //                          PEBBLE SCBA TRACKER                                     
 //                                                                                  
-//  Version:  1.2                                                           
+//  Version:  1.3                                                           
 //  Author:   Bernhard D.                                                   
-//  Date:     2015-01-09                                                    
+//  Date:     2015-06-14                                                    
 //                                                                          
 //  DESCRIPTION: 
 //
@@ -280,7 +280,14 @@ void handle_init(void)
     .unload = window_unload
   });
   
+#ifdef PBL_PLATFORM_APLITE
   window_set_fullscreen(g_window, true);
+#endif // #ifdef PBL_PLATFORM_APLITE
+
+#ifdef PBL_COLOR
+  window_set_background_color(g_window, GColorWhite);
+#endif // #ifdef PBL_APLITE
+  
   tick_timer_service_subscribe(SECOND_UNIT, (TickHandler)tick_handler);
   
   app_message_register_inbox_received((AppMessageInboxReceived) in_recv_handler);
@@ -336,7 +343,7 @@ void window_load(Window *window)
   icon_up = gbitmap_create_with_resource(RESOURCE_ID_ARROW_UP);
   icon_down = gbitmap_create_with_resource(RESOURCE_ID_ARROW_DOWN);
   icon_ok = gbitmap_create_with_resource(RESOURCE_ID_OK_BTN);
-
+  
   action_bar_layer_set_icon(g_action_bar, BUTTON_ID_UP, icon_up);
   action_bar_layer_set_icon(g_action_bar, BUTTON_ID_DOWN, icon_down);
   action_bar_layer_set_icon(g_action_bar, BUTTON_ID_SELECT, icon_ok);
@@ -645,9 +652,9 @@ void switch_scba_selection(uint8_t key)
       if((scba_team_data[active_scba].scba_team_status == SCBA_THIRD_FULL_BOTTLE_ALARM) || (scba_team_data[active_scba].scba_team_status == SCBA_HALF_FULL_BOTTLE_ALARM) ||
          (scba_team_data[active_scba].scba_team_status == SCBA_THIRD_EMPTY_BOTTLE_ALARM) || (scba_team_data[active_scba].scba_team_status == SCBA_EMPTY_BOTTLE_ALARM))
       {
-          text_layer_set_text_color(scba_layer[active_scba].scba_team_nr, GColorBlack);
-          text_layer_set_background_color(scba_layer[active_scba].scba_team_nr, GColorClear);
-          scba_team_data[active_scba].scba_team_status ++;
+        text_layer_set_text_color(scba_layer[active_scba].scba_team_nr, GColorBlack);
+        text_layer_set_background_color(scba_layer[active_scba].scba_team_nr, GColorClear);
+        scba_team_data[active_scba].scba_team_status ++;
       }
       else if(scba_team_data[active_scba].scba_team_status == SCBA_NOT_STARTED)
       {
@@ -660,8 +667,12 @@ void switch_scba_selection(uint8_t key)
       }
       else
       {
-        text_layer_set_text_color(scba_layer[active_scba].scba_bottle_pressure, GColorClear);
-        text_layer_set_background_color(scba_layer[active_scba].scba_bottle_pressure, GColorBlack);      
+#ifdef PBL_COLOR
+        text_layer_set_text_color(scba_layer[active_scba].scba_bottle_pressure, GColorWhite);
+#else        
+        text_layer_set_text_color(scba_layer[active_scba].scba_bottle_pressure, GColorClear);   
+#endif // #ifdef PBL_COLOR
+        text_layer_set_background_color(scba_layer[active_scba].scba_bottle_pressure, GColorBlack); 
         screen_status = SCBA_UPDATE_PRESSURE;  
       }
       break;
